@@ -2441,6 +2441,14 @@ to simulate "runas /netonly". The resulting token is then impersonated with
 ImpersonateLoggedOnUser() and the token handle is returned for later usage
 with Invoke-RevertToSelf.
 
+.PARAMETER Username
+
+User to Impersonate to (Including Domain).
+
+.PARAMETER Password
+
+The user password.
+
 .PARAMETER Credential
 
 A [Management.Automation.PSCredential] object with alternate credentials
@@ -2458,6 +2466,10 @@ Suppress any warnings about STA vs MTA.
 
 .EXAMPLE
 
+Invoke-UserImpersonation -Username "TESTLAB\dfm.a" -Password "Password123!"
+
+.EXAMPLE
+
 $SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
 $Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
 Invoke-UserImpersonation -Credential $Cred
@@ -2472,6 +2484,14 @@ The TokenHandle result from LogonUser.
     [OutputType([IntPtr])]
     [CmdletBinding(DefaultParameterSetName = 'Credential')]
     Param(
+        [Parameter(Mandatory = $True, ParameterSetName = 'UsrAndPwd')]
+        [String]        
+        $Username,
+        
+        [Parameter(Mandatory = $True, ParameterSetName = 'UsrAndPwd')]
+        [String]        
+        $Password,
+            
         [Parameter(Mandatory = $True, ParameterSetName = 'Credential')]
         [Management.Automation.PSCredential]
         [Management.Automation.CredentialAttribute()]
@@ -2490,10 +2510,14 @@ The TokenHandle result from LogonUser.
         Write-Warning "[Invoke-UserImpersonation] powershell.exe is not currently in a single-threaded apartment state, token impersonation may not work."
     }
 
-    if ($PSBoundParameters['TokenHandle']) {
+    If ($PSBoundParameters['TokenHandle']) {
         $LogonTokenHandle = $TokenHandle
     }
-    else {
+    Else {
+        If ($PSBoundParameters['Username'] -AND $PSBoundParameters['Password']) {
+            $SecPassword = ConvertTo-SecureString $Password -AsPlainText -Force
+            $Credential = New-Object System.Management.Automation.PSCredential($Username, $SecPassword)
+        }
         $LogonTokenHandle = [IntPtr]::Zero
         $NetworkCredential = $Credential.GetNetworkCredential()
         $UserDomain = $NetworkCredential.Domain
